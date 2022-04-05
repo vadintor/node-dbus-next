@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
+const path = require('path');
 const xml2js = require('xml2js');
 const Handlebars = require('handlebars');
 let parser = new xml2js.Parser();
@@ -12,7 +13,18 @@ program
   .description('Generate a dbus-next JavaScript interface from an xml DBus interface description.')
   .arguments('<interface_xml..>')
   .option('-o, --output [path]', 'The output file path for JavaScript classes (default: stdout)')
+  .option('-t, --template [path]', 'Template to use for interface generation')
   .parse(process.argv);
+
+program.template = program.template || "javascript-class.js";
+if (path.basename(program.template, ".hbs") === program.template) {
+    program.template = path.resolve(__dirname, "..", "templates", path.basename(program.template, ".hbs") + ".hbs");
+}
+const templateExt = path.extname(path.basename(program.template, ".hbs"));
+
+if (!fs.existsSync(program.template)) {
+    exitError(`template file '${program.template}' does not exists`);
+}
 
 const templateData = `
 let dbus = require('dbus-next');

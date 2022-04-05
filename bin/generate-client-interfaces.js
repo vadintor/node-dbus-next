@@ -36,6 +36,7 @@ program
     .option('--system', 'Use the system bus')
     .option('--session', 'Use the session bus')
     .option('-t, --template [path]', 'Template to use for interface generation')
+    .option('-x, --xml <path>', 'XML description to use for interface generation')
     .option('--full', 'Do not exclude DBus standard interfaces')
     .option('-p, --prefix', 'Prefix class names with full interface path')
     .option('-o, --output [path]', 'The output file or directory (default: stdout)')
@@ -78,6 +79,14 @@ if (!fs.existsSync(program.template)) {
     exitError(`template file '${program.template}' does not exists`);
 }
 
+if (program.xml && !fs.existsSync(program.xml)) {
+    exitError(`XML file '${program.xml}' does not exists`);
+}
+
+if (program.xml && program.recursive) {
+    exitError(`Not supported; Option XML file -x, --xml together with option Recursive -r, --recursive`);
+}
+
 if (program.recursive && !program.output) {
     exitError("Output directory is required for recursive operation");
 }
@@ -89,9 +98,7 @@ if (program.recursive && !fs.existsSync(program.output)) {
 if (program.recursive && !fs.lstatSync(program.output).isDirectory()) {
     exitError(`Output directory '${program.output}' is not a directory`);
 }
-
 const bus = (program.system ? dbus.systemBus() : dbus.sessionBus());
-
 
 function getInterfaceDesc(destination, objectPath) {
     const message = new Message({
@@ -358,8 +365,10 @@ async function main() {
             // TODO: Check for duplicate file names
             await writeFile(path.join(program.output, ifs.filename), ifs.result);
         }
-    } else {
-        const desc = await getInterfaceDesc(destination, objectPath);
+    } else { 
+        const desc = program.xml 
+            ? await readFile(program.xml, { encoding: "utf8" })
+            : await getInterfaceDesc(destination, objectPath);
         const interfaceData = await getInterfaceDataFromXml(desc, objectPath);
         const result = template(interfaceData);
         if (program.output) {
